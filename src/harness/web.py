@@ -11,8 +11,14 @@ import os
 
 DEFAULT_CONFIG_PATH = str(Path.home() / ".harness" / "config.yaml")
 
-def create_app(config_path=DEFAULT_CONFIG_PATH, mock=False):
-    app = Flask(__name__, template_folder=os.path.join(os.path.dirname(__file__), "..", "..", "templates"))
+def create_app(config_path=DEFAULT_CONFIG_PATH, mock=None):
+    if mock is None:
+        mock = os.environ.get("HARNESS_MOCK", "0") == "1"
+
+    template_dir = os.path.join(os.path.dirname(__file__), "..", "..", "templates")
+    if not os.path.exists(template_dir):
+        template_dir = os.path.join(os.getcwd(), "templates")
+    app = Flask(__name__, template_folder=template_dir)
 
     @app.route("/")
     def index():
@@ -29,10 +35,15 @@ def create_app(config_path=DEFAULT_CONFIG_PATH, mock=False):
         if mock:
             llm = MockLLM(responses=["<FINAL_ANSWER>mock mode: " + user_input + "</FINAL_ANSWER>"])
         else:
-            cm = CredentialManager(api_key_env=cfg.api_key_env)
-            key = cm.get_key()
+            key = os.environ.get(cfg.api_key_env, "")
             if not key:
-                return jsonify({"error": "No API key configured. Run: harness config set-key"}), 500
+                try:
+                    cm = CredentialManager(api_key_env=cfg.api_key_env)
+                    key = cm.get_key()
+                except Exception:
+                    key = None
+            if not key:
+                return jsonify({"error": "No API key configured. Set DEEPSEEK_API_KEY env var."}), 500
             llm = DeepSeekLLM(api_key=key, model=cfg.llm_model)
 
         reg = make_default_registry()
@@ -49,4 +60,4 @@ def create_app(config_path=DEFAULT_CONFIG_PATH, mock=False):
 
 if __name__ == "__main__":
     app = create_app()
-    app.run(host="0.0.0.0", port=5000)
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 7860)))
