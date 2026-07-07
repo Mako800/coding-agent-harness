@@ -91,14 +91,14 @@ coding-agent-harness/
 
 ## Deployment
 
-The WebUI is deployed to [Render](https://render.com) as a free web service:
+The WebUI is deployed to [Hugging Face Spaces](https://huggingface.co/spaces/ZhaoYue800/coding-agent-harness):
 
-- **URL**: (see below, deployed at render.com)
-- **Platform**: Render free tier
-- **Build**: `pip install -e ".[dev]" && gunicorn harness.web:app`
-- **Start command**: `gunicorn harness.web:create_app() --factory`
-- **CI/CD**: GitHub Actions runs tests on every push; Render auto-deploys on push to master
-- **Key configuration on target machine**: Set `DEEPSEEK_API_KEY` as an environment variable in Render dashboard
+- **URL**: https://ZhaoYue800-coding-agent-harness.hf.space
+- **Platform**: Hugging Face Spaces (Docker SDK, free tier)
+- **Build**: Docker image from `Dockerfile`
+- **Start command**: `gunicorn harness.web:app --bind 0.0.0.0:7860`
+- **CI/CD**: GitHub Actions runs tests on every push; HF Spaces auto-rebuilds on push to main
+- **Key configuration on target machine**: Set `DEEPSEEK_API_KEY` as an environment variable in HF Space Settings → Variables. Default runs in mock mode (`HARNESS_MOCK=1`).
 
 ## Limitations
 
