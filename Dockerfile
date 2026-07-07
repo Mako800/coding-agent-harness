@@ -15,4 +15,4 @@ ENV HARNESS_MOCK=1
 
 EXPOSE 7860
 
-CMD ["gunicorn", "harness.web:create_app", "--factory", "--bind", "0.0.0.0:7860"]
+CMD ["gunicorn", "harness.web:app", "--bind", "0.0.0.0:7860"]
