@@ -1,3 +1,13 @@
+---
+title: Coding Agent Harness
+emoji: 🛡️
+colorFrom: blue
+colorTo: green
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # Coding Agent Harness
 
 A minimal but complete Coding Agent Harness built from scratch in Python, with a deep focus on **governance** (guardrails / HITL state machine / scope fence).
