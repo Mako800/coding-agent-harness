@@ -77,7 +77,7 @@ coding-agent-harness/
 │   └── web.py               # Flask web UI
 ├── templates/
 │   └── index.html           # Chat UI page
-├── tests/                   # 66 unit tests (all MockLLM-driven, no network)
+├── tests/                   # 70 unit tests (all MockLLM-driven, no network)
 ├── demo/
 │   └── run_demo.py          # §A.6 mechanism demonstration (3 scenarios)
 ├── pyproject.toml           # Package metadata, deps, entry point
