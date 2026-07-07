@@ -11,7 +11,10 @@ class CredentialManager:
         key = os.environ.get(self._env_name)
         if key:
             return key
-        return keyring.get_password(SERVICE_NAME, self._env_name)
+        try:
+            return keyring.get_password(SERVICE_NAME, self._env_name)
+        except keyring.errors.NoKeyringError:
+            return None
 
     def has_key(self) -> bool:
         return self.get_key() is not None
