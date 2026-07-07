@@ -25,10 +25,20 @@
         .examples { margin-top: 12px; }
         .examples button { margin-right: 8px; padding: 5px 12px; border: 1px solid #ddd; background: #f5f5f5; border-radius: 4px; cursor: pointer; font-size: 13px; }
         .examples button:hover { background: #e0e0e0; }
-        .chat { border: 1px solid #ddd; border-radius: 4px; padding: 15px; height: 250px; overflow-y: auto; margin-bottom: 10px; background: #fafafa; }
+        .chat { border: 1px solid #ddd; border-radius: 4px; padding: 15px; height: 400px; overflow-y: auto; margin-bottom: 10px; background: #fafafa; }
         .msg { margin: 6px 0; padding: 8px 12px; border-radius: 4px; }
         .user { background: #e3f2fd; text-align: right; }
         .agent { background: #fff; }
+        .step { margin: 4px 0; padding: 8px 12px; border-radius: 4px; font-size: 13px; font-family: monospace; border-left: 3px solid #ccc; }
+        .step.tool { border-left-color: #1976d2; background: #f0f7ff; }
+        .step.guard { border-left-color: #f44336; background: #fff0f0; }
+        .step.feedback { border-left-color: #ff9800; background: #fff8e1; }
+        .step.final { border-left-color: #4caf50; background: #f0fff0; font-weight: bold; }
+        .step .step-type { font-weight: bold; text-transform: uppercase; font-size: 11px; color: #666; }
+        .step.tool .step-type { color: #1976d2; }
+        .step.guard .step-type { color: #f44336; }
+        .step.feedback .step-type { color: #ff9800; }
+        .step.final .step-type { color: #4caf50; }
         .chat-input { display: flex; gap: 10px; }
         .chat-input input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
         .chat-input button { padding: 10px 20px; background: #1976d2; color: white; border: none; border-radius: 4px; cursor: pointer; }
@@ -65,10 +75,11 @@
     </div>
 
     <div class="section">
-        <h2>Agent 对话</h2>
+        <h2>Agent 对话 <span class="badge green">Mock 模式</span></h2>
+        <p>点击发送，观察 agent 的完整工作循环：工具调用 → 护栏拦截 → 反馈回灌 → 自我修正 → 最终回答</p>
         <div class="chat" id="chat"></div>
         <div class="chat-input">
-            <input id="msg" placeholder="输入消息..." onkeydown="if(event.key==='Enter')send()">
+            <input id="msg" placeholder="输入消息，或直接点发送看 demo..." onkeydown="if(event.key==='Enter')send()">
             <button onclick="send()">发送</button>
         </div>
     </div>
@@ -105,17 +116,44 @@
         const chat = document.getElementById('chat');
         const msg = document.getElementById('msg');
         async function send() {
-            const text = msg.value.trim();
-            if (!text) return;
+            const text = msg.value.trim() || '(demo)';
             chat.innerHTML += `<div class="msg user">${text}</div>`;
             msg.value = '';
-            chat.innerHTML += `<div class="msg agent" id="loading">思考中...</div>`;
+            chat.innerHTML += `<div class="msg agent" id="loading">Agent 运行中...</div>`;
             chat.scrollTop = chat.scrollHeight;
             try {
                 const r = await fetch('/api/chat', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message:text})});
                 const d = await r.json();
                 document.getElementById('loading').remove();
-                chat.innerHTML += `<div class="msg agent">${d.response||d.error}</div>`;
+                if (d.steps && d.steps.length > 0) {
+                    for (const s of d.steps) {
+                        const el = document.createElement('div');
+                        el.className = 'step';
+                        if (s.type === 'llm_response') {
+                            el.className = 'step tool';
+                            el.innerHTML = `<span class="step-type">LLM 决策</span><br>动作: ${s.actions.map(a => a.name + '(' + JSON.stringify(a.args) + ')').join(', ')}`;
+                        } else if (s.type === 'tool_result') {
+                            const gr = s.guardrail.decision;
+                            if (gr === 'BLOCK') {
+                                el.className = 'step guard';
+                                el.innerHTML = `<span class="step-type">护栏拦截</span><br>动作: ${s.action.name}(${JSON.stringify(s.action.args)})<br>判定: ${gr} — ${s.guardrail.reason}<br>结果: ${s.result.stderr}`;
+                            } else {
+                                el.className = s.signal.status === 'SUCCESS' ? 'step tool' : 'step feedback';
+                                el.innerHTML = `<span class="step-type">工具执行</span><br>动作: ${s.action.name}(${JSON.stringify(s.action.args)})<br>护栏: ${gr} | 信号: ${s.signal.status}<br>输出: ${(s.result.stdout || s.result.stderr || '').substring(0, 200)}`;
+                            }
+                        } else if (s.type === 'final_answer') {
+                            el.className = 'step final';
+                            el.innerHTML = `<span class="step-type">最终回答</span><br>${s.content}`;
+                        } else if (s.type === 'response') {
+                            el.className = 'step';
+                            el.innerHTML = `<span class="step-type">响应</span><br>${s.content}`;
+                        }
+                        chat.appendChild(el);
+                        chat.scrollTop = chat.scrollHeight;
+                    }
+                } else {
+                    chat.innerHTML += `<div class="msg agent">${d.response||d.error}</div>`;
+                }
             } catch(e) {
                 document.getElementById('loading').remove();
                 chat.innerHTML += `<div class="msg agent">错误: ${e}</div>`;

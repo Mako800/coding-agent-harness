@@ -60,8 +60,15 @@ def create_app(config_path=DEFAULT_CONFIG_PATH, mock=None):
             return jsonify({"error": "no message"}), 400
 
         cfg = load_config(config_path)
+        steps = []
+
         if mock:
-            llm = MockLLM(responses=["<FINAL_ANSWER>mock mode: " + user_input + "</FINAL_ANSWER>"])
+            llm = MockLLM(responses=[
+                '<action name="bash" args=\'{"command": "echo Hello from agent tool"}\'/>',
+                '<action name="bash" args=\'{"command": "rm -rf /"}\'/>',
+                '<action name="bash" args=\'{"command": "echo corrected after block"}\'/>',
+                '<FINAL_ANSWER>Agent loop complete. I executed 3 tool calls: echo (success), rm -rf / (blocked by guardrail), echo (success after self-correction).</FINAL_ANSWER>',
+            ])
         else:
             key = os.environ.get(cfg.api_key_env, "")
             if not key:
@@ -76,9 +83,13 @@ def create_app(config_path=DEFAULT_CONFIG_PATH, mock=None):
 
         reg = make_default_registry()
         mem = Memory(cfg.memory_file)
-        loop = AgentLoop(llm=llm, registry=reg, config=cfg, memory=mem, feedback=Feedback())
+        loop = AgentLoop(
+            llm=llm, registry=reg, config=cfg, memory=mem, feedback=Feedback(),
+            hitl_input=lambda prompt: "n",
+            step_callback=lambda step: steps.append(step),
+        )
         result = loop.run(user_input)
-        return jsonify({"response": result})
+        return jsonify({"response": result, "steps": steps})
 
     @app.route("/api/health")
     def health():

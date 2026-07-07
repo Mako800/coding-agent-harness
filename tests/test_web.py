@@ -20,7 +20,12 @@ def test_chat_mock_mode():
     client = app.test_client()
     resp = client.post("/api/chat", json={"message": "hello"})
     assert resp.status_code == 200
-    assert "mock mode" in resp.json["response"]
+    assert "Agent loop complete" in resp.json["response"]
+    steps = resp.json["steps"]
+    assert len(steps) >= 4
+    assert steps[-1]["type"] == "final_answer"
+    has_guard = any(s.get("guardrail", {}).get("decision") == "BLOCK" for s in steps if s["type"] == "tool_result")
+    assert has_guard
 
 def test_chat_empty_message():
     app = create_app(mock=True)
