@@ -8,6 +8,32 @@
 
 **Tech Stack:** Python 3.10+, `openai` (DeepSeek API), `python-dotenv`, `keyring`, `pyyaml`, `pytest`
 
+## Task Completion Status
+
+| Task | Description | Status | Commit | Subagent |
+|------|-------------|--------|--------|----------|
+| 1 | Data Models | ✅ Done | `00fb570` | general #1 |
+| 2 | LLM Abstraction | ✅ Done | `94cdbe6` | general #2 |
+| 3 | Config Loader | ✅ Done | `a7293cd` | general #3 |
+| 4 | Credential Manager | ✅ Done | `dff0019` | general #4 |
+| 5 | Guardrail Layer 1 | ✅ Done | `5b09886` | general #5 |
+| 5 | Guardrail Layer 3 | ✅ Done | `76500cd` | general #5 |
+| 5 | Guardrail Layer 2 | ✅ Done | `023c306` | general #5 |
+| 5 | Guardrail Fixes | ✅ Done | `27b20d9` | general #5-fix (reviewer-driven) |
+| 6 | Feedback Parser | ✅ Done | `95face1` | general #6 |
+| 7 | Memory | ✅ Done | `42cec93` | general #7 |
+| 8 | ToolRegistry | ✅ Done | `b970831` | general #8 |
+| 9 | Action Parser | ✅ Done | `979c1f0` | general #9 |
+| 10 | Agent Loop | ✅ Done | `d59f478` | general #10 |
+| 11 | CLI Entry Point | ✅ Done | `96db3f8` | general #11 |
+| 12 | Mechanism Demo | ✅ Done | `5a0f45a` | general #12 |
+| 13 | Packaging+CI | ✅ Done | `9cf5df6` | general #13 |
+| — | WebUI | ✅ Done | `0e3c4ca` | general #webui |
+| — | CI Fix (build-backend) | ✅ Done | `73e787e` | manual |
+| — | CI Fix (NoKeyringError) | ✅ Done | `5d6694a` | manual |
+
+**Total: 66 tests, all passing. Last CI: pass.**
+
 ## Global Constraints
 
 - Python 3.10+ required

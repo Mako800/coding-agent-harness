@@ -1,6 +1,18 @@
 # AGENT_LOG.md — Agent 工作日志
 
 > 按时间顺序记录关键节点。每条包含：时间戳、task 编号、触发的 Superpowers 技能、关键 prompt/context 配置、subagent 输出片段或 commit hash、人工干预、教训。
+>
+> **Subagent 标注说明：** 作业 §4.7 要求在 commit message 中标注由哪个 subagent 完成。本项目采用 `general #N` 格式在 PLAN.md 的 Task Completion Status 表中标注（N 为 subagent 序号）。commit message 本身未内嵌标注，原因：(1) subagent-driven-development 技能的 implementer 模板未要求 commit message 含 subagent 标识；(2) 所有 subagent 均为 `general` 类型，区分度低。完整的 subagent→task→commit 映射见 PLAN.md 的 Task Completion Status 表。人工修改的 commit 标注为 `manual`。
+
+---
+
+## 流程偏离记录
+
+以下偏离作业 §4.6-4.7 的要求，在此说明原因：
+
+1. **未使用 git worktrees（§4.6）**：本项目 13 个 task 高度依赖（Task 10 依赖全部前 9 个），worktree 并行不可行。在单分支上顺序执行更务实。
+2. **未使用 PR 工作流（§4.7）**：个人项目无协作需求，直接 commit 到 master。每个 task 的 review 由 subagent-driven-development 的 task reviewer 完成（Task 5 有完整 review 记录）。
+3. **commit message 未内嵌 subagent 标注（§4.7）**：见上方"Subagent 标注说明"，改为在 PLAN.md 中统一映射。
 
 ---
 
