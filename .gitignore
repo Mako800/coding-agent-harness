@@ -1,4 +1,8 @@
+# .gitignore
+.env
 __pycache__/
-*.py[cod]
+*.pyc
+dist/
 *.egg-info/
 .pytest_cache/
+~/.harness/

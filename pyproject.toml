@@ -1,0 +1,28 @@
+# pyproject.toml
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "coding-agent-harness"
+version = "0.1.0"
+description = "A minimal Coding Agent Harness with deep governance focus"
+requires-python = ">=3.10"
+dependencies = [
+    "openai>=1.0",
+    "python-dotenv>=1.0",
+    "keyring>=24.0",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0"]
+
+[project.scripts]
+harness = "harness.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
