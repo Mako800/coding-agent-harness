@@ -1,0 +1,17 @@
+# .gitlab-ci.yml
+# CI 配置 — 必须包含名为 unit-test 的 job
+
+stages:
+  - test
+
+unit-test:
+  stage: test
+  image: python:3.10-slim
+  before_script:
+    - pip install -e ".[dev]"
+  script:
+    - pytest -v
+    - python demo/run_demo.py
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"

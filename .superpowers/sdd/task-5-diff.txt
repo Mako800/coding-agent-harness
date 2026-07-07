@@ -1,0 +1,178 @@
+﻿=== Commits ===
+023c306 feat(guardrail): layer 2 HITL state machine
+76500cd feat(guardrail): layer 3 scope fence
+5b09886 feat(guardrail): layer 1 command detection
+
+=== Stat ===
+ src/harness/guardrail.py |  53 ++++++++++++++++++++++++
+ tests/test_guardrail.py  | 102 +++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 155 insertions(+)
+
+=== Full Diff ===
+diff --git a/src/harness/guardrail.py b/src/harness/guardrail.py
+new file mode 100644
+index 0000000..41797c9
+--- /dev/null
++++ b/src/harness/guardrail.py
+@@ -0,0 +1,53 @@
++from .models import Action, GuardrailResult
++from .config import Config
++from pathlib import Path
++
++
++def guardrail(action: Action, config: Config) -> GuardrailResult:
++    if action.name != "bash":
++        return GuardrailResult(decision="PASS", reason="non-bash action, layer 1 pass")
++    command = action.args.get("command", "")
++    for blocked in config.blocked_commands:
++        if blocked in command:
++            return GuardrailResult(decision="BLOCK", reason=f"matched blocked pattern: {blocked}")
++    for hitl in config.hitl_commands:
++        if hitl in command:
++            return GuardrailResult(decision="HITL_PENDING", reason=f"matched HITL pattern: {hitl}")
++    return GuardrailResult(decision="PASS", reason="no dangerous pattern matched")
++
++
++def check_scope(action: Action, config: Config) -> GuardrailResult:
++    if action.name not in ("read", "write", "glob", "grep"):
++        return GuardrailResult(decision="PASS", reason="non-file action, scope not checked")
++    path_key = "file_path" if "file_path" in action.args else "path"
++    if path_key not in action.args:
++        return GuardrailResult(decision="PASS", reason="no path argument")
++    target = Path(action.args[path_key]).resolve()
++    for allowed in config.allowed_directories:
++        allowed_resolved = Path(allowed).expanduser().resolve()
++        if str(target).startswith(str(allowed_resolved)):
++            return GuardrailResult(decision="PASS", reason=f"path within allowed: {allowed}")
++    return GuardrailResult(decision="BLOCK", reason=f"path outside allowed directories: {target}")
++
++
++class HitlState:
++    _TRANSITIONS = {
++        "PENDING": {"APPROVED", "REJECTED"},
++        "APPROVED": set(),
++        "REJECTED": set(),
++    }
++
++    def __init__(self):
++        self.current = "PENDING"
++
++    def _transition(self, new_state: str):
++        allowed = self._TRANSITIONS.get(self.current, set())
++        if new_state not in allowed:
++            raise RuntimeError(f"cannot transition from {self.current} to {new_state}")
++        self.current = new_state
++
++    def approve(self):
++        self._transition("APPROVED")
++
++    def reject(self):
++        self._transition("REJECTED")
+diff --git a/tests/test_guardrail.py b/tests/test_guardrail.py
+new file mode 100644
+index 0000000..b465c16
+--- /dev/null
++++ b/tests/test_guardrail.py
+@@ -0,0 +1,102 @@
++from harness.models import Action, GuardrailResult
++from harness.config import Config
++from harness.guardrail import guardrail, check_scope, HitlState
++
++def test_blocked_command_rm_rf_root():
++    cfg = Config()
++    a = Action(name="bash", args={"command": "rm -rf /"})
++    result = guardrail(a, cfg)
++    assert result.decision == "BLOCK"
++    assert "rm -rf /" in result.reason or "blocked" in result.reason.lower()
++
++def test_blocked_command_dd():
++    cfg = Config()
++    a = Action(name="bash", args={"command": "dd if=/dev/zero of=/dev/sda"})
++    result = guardrail(a, cfg)
++    assert result.decision == "BLOCK"
++
++def test_hitl_command_rm_file():
++    cfg = Config()
++    a = Action(name="bash", args={"command": "rm somefile.txt"})
++    result = guardrail(a, cfg)
++    assert result.decision == "HITL_PENDING"
++
++def test_hitl_command_sudo():
++    cfg = Config()
++    a = Action(name="bash", args={"command": "sudo apt update"})
++    result = guardrail(a, cfg)
++    assert result.decision == "HITL_PENDING"
++
++def test_pass_command_ls():
++    cfg = Config()
++    a = Action(name="bash", args={"command": "ls -la"})
++    result = guardrail(a, cfg)
++    assert result.decision == "PASS"
++
++def test_pass_command_pytest():
++    cfg = Config()
++    a = Action(name="bash", args={"command": "pytest -v"})
++    result = guardrail(a, cfg)
++    assert result.decision == "PASS"
++
++def test_non_bash_action_passes_layer1():
++    cfg = Config()
++    a = Action(name="read", args={"file_path": "/etc/passwd"})
++    result = guardrail(a, cfg)
++    assert result.decision == "PASS"
++
++
++def test_scope_fence_blocks_outside_directory(tmp_path):
++    cfg = Config(allowed_directories=[str(tmp_path)])
++    outside = tmp_path.parent / "secret.txt"
++    a = Action(name="read", args={"file_path": str(outside)})
++    result = check_scope(a, cfg)
++    assert result.decision == "BLOCK"
++
++def test_scope_fence_allows_inside_directory(tmp_path):
++    cfg = Config(allowed_directories=[str(tmp_path)])
++    inside = tmp_path / "code.py"
++    a = Action(name="read", args={"file_path": str(inside)})
++    result = check_scope(a, cfg)
++    assert result.decision == "PASS"
++
++def test_scope_fence_write_blocked_outside(tmp_path):
++    cfg = Config(allowed_directories=[str(tmp_path)])
++    a = Action(name="write", args={"file_path": "/etc/passwd", "content": "hacked"})
++    result = check_scope(a, cfg)
++    assert result.decision == "BLOCK"
++
++def test_scope_fence_bash_not_checked():
++    cfg = Config(allowed_directories=["."])
++    a = Action(name="bash", args={"command": "ls"})
++    result = check_scope(a, cfg)
++    assert result.decision == "PASS"
++
++
++def test_hitl_state_starts_pending():
++    state = HitlState()
++    assert state.current == "PENDING"
++
++def test_hitl_state_approve_transition():
++    state = HitlState()
++    state.approve()
++    assert state.current == "APPROVED"
++
++def test_hitl_state_reject_transition():
++    state = HitlState()
++    state.reject()
++    assert state.current == "REJECTED"
++
++def test_hitl_state_cannot_approve_after_rejected():
++    import pytest
++    state = HitlState()
++    state.reject()
++    with pytest.raises(RuntimeError, match="cannot transition"):
++        state.approve()
++
++def test_hitl_state_cannot_reject_after_approved():
++    import pytest
++    state = HitlState()
++    state.approve()
++    with pytest.raises(RuntimeError, match="cannot transition"):
++        state.reject()

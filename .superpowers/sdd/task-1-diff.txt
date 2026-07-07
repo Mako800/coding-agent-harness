@@ -1,0 +1,110 @@
+﻿=== Commits ===
+00fb570 feat(models): add core dataclasses for harness
+
+=== Stat ===
+ .gitignore              |  4 ++++
+ conftest.py             |  4 ++++
+ src/harness/__init__.py |  1 +
+ src/harness/models.py   | 32 ++++++++++++++++++++++++++++++++
+ tests/test_models.py    | 27 +++++++++++++++++++++++++++
+ 5 files changed, 68 insertions(+)
+
+=== Full Diff ===
+diff --git a/.gitignore b/.gitignore
+new file mode 100644
+index 0000000..406eb48
+--- /dev/null
++++ b/.gitignore
+@@ -0,0 +1,4 @@
++__pycache__/
++*.py[cod]
++*.egg-info/
++.pytest_cache/
+diff --git a/conftest.py b/conftest.py
+new file mode 100644
+index 0000000..81ee9f8
+--- /dev/null
++++ b/conftest.py
+@@ -0,0 +1,4 @@
++import sys
++import os
++
++sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
+diff --git a/src/harness/__init__.py b/src/harness/__init__.py
+new file mode 100644
+index 0000000..3dc1f76
+--- /dev/null
++++ b/src/harness/__init__.py
+@@ -0,0 +1 @@
++__version__ = "0.1.0"
+diff --git a/src/harness/models.py b/src/harness/models.py
+new file mode 100644
+index 0000000..8aa5e2e
+--- /dev/null
++++ b/src/harness/models.py
+@@ -0,0 +1,32 @@
++from dataclasses import dataclass
++
++
++@dataclass
++class Message:
++    role: str
++    content: str
++
++
++@dataclass
++class Action:
++    name: str
++    args: dict
++
++
++@dataclass
++class ToolResult:
++    stdout: str
++    stderr: str
++    exit_code: int
++
++
++@dataclass
++class GuardrailResult:
++    decision: str
++    reason: str
++
++
++@dataclass
++class Signal:
++    status: str
++    summary: str
+diff --git a/tests/test_models.py b/tests/test_models.py
+new file mode 100644
+index 0000000..58dbe95
+--- /dev/null
++++ b/tests/test_models.py
+@@ -0,0 +1,27 @@
++from harness.models import Message, Action, ToolResult, GuardrailResult, Signal
++
++def test_message_creation():
++    m = Message(role="user", content="hello")
++    assert m.role == "user"
++    assert m.content == "hello"
++
++def test_action_creation():
++    a = Action(name="bash", args={"command": "ls"})
++    assert a.name == "bash"
++    assert a.args["command"] == "ls"
++
++def test_tool_result_fields():
++    r = ToolResult(stdout="out", stderr="err", exit_code=0)
++    assert r.stdout == "out"
++    assert r.stderr == "err"
++    assert r.exit_code == 0
++
++def test_guardrail_result_decisions():
++    for decision in ("PASS", "BLOCK", "HITL_PENDING"):
++        g = GuardrailResult(decision=decision, reason="test")
++        assert g.decision == decision
++
++def test_signal_statuses():
++    for status in ("SUCCESS", "FAILURE", "ERROR"):
++        s = Signal(status=status, summary="test")
++        assert s.status == status
