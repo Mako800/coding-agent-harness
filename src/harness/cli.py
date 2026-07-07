@@ -21,6 +21,7 @@ def main():
     config_sub_sub.add_parser("clear-key")
     parser.add_argument("--mock", action="store_true", help="Use MockLLM")
     parser.add_argument("--config", default=DEFAULT_CONFIG_PATH)
+    parser.add_argument("--web", action="store_true", help="Start Flask web server instead of REPL")
     args = parser.parse_args()
 
     if args.command == "config":
@@ -35,6 +36,13 @@ def main():
         elif args.config_command == "clear-key":
             cm.clear_key()
             print("API key cleared.")
+        return
+
+    if args.web:
+        from .web import create_app
+        app = create_app(config_path=args.config, mock=args.mock)
+        print("Starting web server at http://0.0.0.0:5000")
+        app.run(host="0.0.0.0", port=5000)
         return
 
     cfg = load_config(args.config)
