@@ -27,3 +27,33 @@ def test_chat_empty_message():
     client = app.test_client()
     resp = client.post("/api/chat", json={"message": ""})
     assert resp.status_code == 400
+
+def test_guardrail_check_safe():
+    app = create_app(mock=True)
+    client = app.test_client()
+    resp = client.post("/api/guardrail-check", json={"command": "ls -la"})
+    assert resp.status_code == 200
+    assert resp.json["level"] == "safe"
+    assert resp.json["decision"] == "PASS"
+
+def test_guardrail_check_dangerous():
+    app = create_app(mock=True)
+    client = app.test_client()
+    resp = client.post("/api/guardrail-check", json={"command": "rm -rf /"})
+    assert resp.status_code == 200
+    assert resp.json["level"] == "dangerous"
+    assert resp.json["decision"] == "BLOCK"
+
+def test_guardrail_check_hitl():
+    app = create_app(mock=True)
+    client = app.test_client()
+    resp = client.post("/api/guardrail-check", json={"command": "rm file.txt"})
+    assert resp.status_code == 200
+    assert resp.json["level"] == "dangerous"
+    assert resp.json["decision"] == "HITL_PENDING"
+
+def test_guardrail_check_empty():
+    app = create_app(mock=True)
+    client = app.test_client()
+    resp = client.post("/api/guardrail-check", json={"command": ""})
+    assert resp.status_code == 400

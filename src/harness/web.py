@@ -6,6 +6,8 @@ from .tools import make_default_registry
 from .memory import Memory
 from .feedback import Feedback
 from .agent_loop import AgentLoop
+from .models import Action
+from .guardrail import guardrail, check_scope
 from pathlib import Path
 import os
 
@@ -23,6 +25,32 @@ def create_app(config_path=DEFAULT_CONFIG_PATH, mock=None):
     @app.route("/")
     def index():
         return render_template("index.html")
+
+    @app.route("/api/guardrail-check", methods=["POST"])
+    def guardrail_check():
+        data = request.json
+        command = data.get("command", "")
+        if not command:
+            return jsonify({"error": "no command"}), 400
+        cfg = load_config(config_path)
+        action = Action(name="bash", args={"command": command})
+        gr = guardrail(action, cfg)
+        sr = check_scope(action, cfg)
+        if gr.decision == "BLOCK":
+            level = "dangerous"
+        elif gr.decision == "HITL_PENDING":
+            level = "dangerous"
+        elif sr.decision == "BLOCK":
+            level = "dangerous"
+        else:
+            level = "safe"
+        return jsonify({
+            "command": command,
+            "decision": gr.decision,
+            "scope": sr.decision,
+            "level": level,
+            "reason": gr.reason,
+        })
 
     @app.route("/api/chat", methods=["POST"])
     def chat():
