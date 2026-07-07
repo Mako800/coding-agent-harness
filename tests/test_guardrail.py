@@ -1,6 +1,6 @@
 from harness.models import Action, GuardrailResult
 from harness.config import Config
-from harness.guardrail import guardrail
+from harness.guardrail import guardrail, check_scope
 
 def test_blocked_command_rm_rf_root():
     cfg = Config()
@@ -43,4 +43,31 @@ def test_non_bash_action_passes_layer1():
     cfg = Config()
     a = Action(name="read", args={"file_path": "/etc/passwd"})
     result = guardrail(a, cfg)
+    assert result.decision == "PASS"
+
+
+def test_scope_fence_blocks_outside_directory(tmp_path):
+    cfg = Config(allowed_directories=[str(tmp_path)])
+    outside = tmp_path.parent / "secret.txt"
+    a = Action(name="read", args={"file_path": str(outside)})
+    result = check_scope(a, cfg)
+    assert result.decision == "BLOCK"
+
+def test_scope_fence_allows_inside_directory(tmp_path):
+    cfg = Config(allowed_directories=[str(tmp_path)])
+    inside = tmp_path / "code.py"
+    a = Action(name="read", args={"file_path": str(inside)})
+    result = check_scope(a, cfg)
+    assert result.decision == "PASS"
+
+def test_scope_fence_write_blocked_outside(tmp_path):
+    cfg = Config(allowed_directories=[str(tmp_path)])
+    a = Action(name="write", args={"file_path": "/etc/passwd", "content": "hacked"})
+    result = check_scope(a, cfg)
+    assert result.decision == "BLOCK"
+
+def test_scope_fence_bash_not_checked():
+    cfg = Config(allowed_directories=["."])
+    a = Action(name="bash", args={"command": "ls"})
+    result = check_scope(a, cfg)
     assert result.decision == "PASS"
