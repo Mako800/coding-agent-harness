@@ -1,6 +1,6 @@
 from harness.models import Action, GuardrailResult
 from harness.config import Config
-from harness.guardrail import guardrail, check_scope
+from harness.guardrail import guardrail, check_scope, HitlState
 
 def test_blocked_command_rm_rf_root():
     cfg = Config()
@@ -71,3 +71,32 @@ def test_scope_fence_bash_not_checked():
     a = Action(name="bash", args={"command": "ls"})
     result = check_scope(a, cfg)
     assert result.decision == "PASS"
+
+
+def test_hitl_state_starts_pending():
+    state = HitlState()
+    assert state.current == "PENDING"
+
+def test_hitl_state_approve_transition():
+    state = HitlState()
+    state.approve()
+    assert state.current == "APPROVED"
+
+def test_hitl_state_reject_transition():
+    state = HitlState()
+    state.reject()
+    assert state.current == "REJECTED"
+
+def test_hitl_state_cannot_approve_after_rejected():
+    import pytest
+    state = HitlState()
+    state.reject()
+    with pytest.raises(RuntimeError, match="cannot transition"):
+        state.approve()
+
+def test_hitl_state_cannot_reject_after_approved():
+    import pytest
+    state = HitlState()
+    state.approve()
+    with pytest.raises(RuntimeError, match="cannot transition"):
+        state.reject()

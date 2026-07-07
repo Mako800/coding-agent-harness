@@ -28,3 +28,26 @@ def check_scope(action: Action, config: Config) -> GuardrailResult:
         if str(target).startswith(str(allowed_resolved)):
             return GuardrailResult(decision="PASS", reason=f"path within allowed: {allowed}")
     return GuardrailResult(decision="BLOCK", reason=f"path outside allowed directories: {target}")
+
+
+class HitlState:
+    _TRANSITIONS = {
+        "PENDING": {"APPROVED", "REJECTED"},
+        "APPROVED": set(),
+        "REJECTED": set(),
+    }
+
+    def __init__(self):
+        self.current = "PENDING"
+
+    def _transition(self, new_state: str):
+        allowed = self._TRANSITIONS.get(self.current, set())
+        if new_state not in allowed:
+            raise RuntimeError(f"cannot transition from {self.current} to {new_state}")
+        self.current = new_state
+
+    def approve(self):
+        self._transition("APPROVED")
+
+    def reject(self):
+        self._transition("REJECTED")
